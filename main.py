@@ -1,87 +1,51 @@
-from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
-
+import asyncio
+from aiogram import Dispatcher, Bot, F
+from aiogram.types import FSInputFile, Message
+from aiogram.filters import Command
 import os
 from pathlib import Path
-import uvicorn
 
-os.chdir(Path(__file__).parent)
+BOT_TOKEN = "...."
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
 DATA_PATH = Path(__file__).parent / "data"
+
 if not DATA_PATH.exists():
     DATA_PATH.mkdir()
-app = FastAPI()
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  
-#     allow_credentials=True,
-#     allow_methods=["*"],  
-#     allow_headers=["*"],  
-# )
-
-@app.get("/")
-async def root():
-   return {"response":"server is working"}
 
 
-@app.post("/multi_files")
-async def upload_multi_files(upl_files: list[UploadFile]):
-    for upl_file in upl_files:
-        
+@dp.message(Command("list"))
+async def send_files_list(message: Message):
+    list_dir = os.listdir(DATA_PATH)
 
-        file = upl_file.file
-        filename = upl_file.filename
-        file_path = DATA_PATH / filename
-        with open(file_path, "wb") as f:
-            f.write(file.read())
+    await message.answer(str(list_dir))
 
 
-@app.post("/files")
-async def upload_file(upl_file:UploadFile):
-    file = upl_file.file
-    filename = upl_file.filename
-    file_path = DATA_PATH / filename
-    with open(file_path, "wb") as f:
-        f.write(file.read())
+@dp.message(F.document)
+async def det_file(message: Message, bot: Bot):
+    file_id = message.document.file_id
+    file_name = message.document.file_name
+
+    file = await bot.get_file(file_id)
+    await bot.download_file(file.file_path, f"{DATA_PATH}/{file_name}")
 
 
-@app.get("/files/{filename}")
-async def get_file(filename:str):
-    file_path = DATA_PATH / filename
-    
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="file not found")
-    return FileResponse(file_path)
-
-
-@app.get("/all_files")
-async def view_all_files():
-    files = [str(f) for f in DATA_PATH.iterdir() if f.is_file()]
-    if len(files)==0:
-        raise HTTPException(status_code=404, detail="data is empty")
-    return {"response":files}
-
-
-def iterfile(filename:str):
-    with open(filename, "rb") as f:
-        while chunk:=f.read(1024*1024):
-            yield chunk
-
-@app.get("/files_stream/{filename}")
-async def get_file_stream(filename:str):
-    file_path = DATA_PATH / filename
-    return StreamingResponse(iterfile(file_path), media_type="video/mp4")
-
-@app.delete("/del_file/{filename}")
-def delete_file(filename:str):
+@dp.message(Command("get"))
+async def get_by_name(message: Message):
+    text = message.text
+    text = text.split()
+    filename = text[1]
     file_path = DATA_PATH / filename
 
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="file not found")
-    file_path.unlink()
-    return {"response": "file is deleted"}
+    if file_path.exists():
+        file = FSInputFile(file_path)
+        await message.answer_document(file)
 
-if __name__=="__main__":
-    uvicorn.run("main:app",
-                host="0.0.0.0",
-                port=8000,
-                reload=True)
+
+async def main():
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,2 +1,2 @@
 # FileStorage
-Storage for files on FASTAPI.
+Storage for files on aiogram.
