@@ -1,29 +1,21 @@
-import asyncio
-from aiogram import Dispatcher, Bot, F
-from aiogram.types import FSInputFile, Message
-from aiogram.filters import Command
 import os
-from pathlib import Path
+from aiogram import Router, Bot, F
+from aiogram.types import Message, FSInputFile
+from aiogram.filters import Command
+from config import DATA_PATH
 
-BOT_TOKEN = "...."
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-
-DATA_PATH = Path(__file__).parent / "data"
-
-if not DATA_PATH.exists():
-    DATA_PATH.mkdir()
+router = Router()
 
 
-@dp.message(Command("list"))
+@router.message(Command("list"))
 async def send_files_list(message: Message):
     list_dir = os.listdir(DATA_PATH)
 
     await message.answer(str(list_dir))
 
 
-@dp.message(F.document)
-async def det_file(message: Message, bot: Bot):
+@router.message(F.document)
+async def get_file(message: Message, bot: Bot):
     file_id = message.document.file_id
     file_name = message.document.file_name
 
@@ -31,7 +23,7 @@ async def det_file(message: Message, bot: Bot):
     await bot.download_file(file.file_path, f"{DATA_PATH}/{file_name}")
 
 
-@dp.message(Command("get"))
+@router.message(Command("get"))
 async def get_by_name(message: Message):
     text = message.text
     text = text.split()
@@ -42,10 +34,9 @@ async def get_by_name(message: Message):
         file = FSInputFile(file_path)
         await message.answer_document(file)
 
+@router.message(Command("get_all"))
+async def get_by_name(message: Message):
+    for f in os.listdir(DATA_PATH):
+        file = FSInputFile(DATA_PATH / f)
+        await message.answer_document(file)
 
-async def main():
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
