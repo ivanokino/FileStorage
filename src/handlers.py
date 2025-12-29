@@ -40,3 +40,16 @@ async def get_by_name(message: Message):
         file = FSInputFile(DATA_PATH / f)
         await message.answer_document(file)
 
+@router.message(Command("del"))
+async def get_by_name(message: Message):
+    text = message.text
+    text = text.split()
+    filename = text[1]
+    file_path = DATA_PATH / filename
+
+    if file_path.exists():
+        file = FSInputFile(file_path)
+        await message.answer("deleted")
+        await message.answer_document(file)
+        os.remove(file_path)
+        
